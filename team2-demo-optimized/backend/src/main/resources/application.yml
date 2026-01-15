@@ -1,0 +1,18 @@
+server:
+  port: 8080
+  shutdown: graceful
+
+spring:
+  application:
+    name: team2-backend
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
