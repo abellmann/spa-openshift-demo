@@ -163,28 +163,18 @@ team2-demo-optimized/
 
 ## Deployment to OpenShift (Test/Production)
 
-### 1. Build and Push Images
+### 1. Set Registry and Version
 
 ```bash
 export REGISTRY="your-registry.io/team2"
 export VERSION="0.0.1"
-
-# Build and tag images
-./build.sh
-
-# Push to registry
-docker push ${REGISTRY}/team2-backend:${VERSION}
-docker push ${REGISTRY}/team2-gateway:${VERSION}
 ```
 
-### 2. Deploy to OpenShift
+### 2. Build, Push, and Deploy
 
 ```bash
-export REGISTRY="your-registry.io/team2"
-export VERSION="0.0.1"
-
-# Deploy using test overlay
-kubectl apply -k k8s/overlays/test
+# Build images, push to registry, and deploy to OpenShift
+./deploy.sh
 
 # Watch deployment
 kubectl get pods -n team2-demo -w
@@ -193,7 +183,12 @@ kubectl get pods -n team2-demo -w
 kubectl get route -n team2-demo
 ```
 
-### 3. Update Route Hostname
+**What `./deploy.sh` does:**
+1. Builds `team2-backend` and `team2-gateway` images with specified VERSION tag
+2. Pushes both images to the registry
+3. Applies the test overlay to deploy to Kubernetes
+
+### 3. Update Route Hostname (Optional)
 
 Edit `k8s/overlays/test/route.yaml` to set your cluster domain, or patch dynamically:
 
@@ -201,6 +196,8 @@ Edit `k8s/overlays/test/route.yaml` to set your cluster domain, or patch dynamic
 kubectl patch route team2-demo -n team2-demo \
   -p '{"spec":{"host":"team2-demo.apps.your-cluster.com"}}'
 ```
+
+**Note:** If you only need to build images without deploying, use `./build.sh`
 
 ## Kubernetes Configuration
 
