@@ -13,8 +13,8 @@ A production-ready demo application with Spring Boot backend, Angular frontend, 
 │  │   ├─ Routes: / → Frontend          │  │
 │  │   └─ Routes: /api/* → Backend      │  │
 │  └─────────────┬──────────────────────┘  │
-│               │                          │
-│  ┌────────────▼──────────────────────┐   │
+│                │                         │
+│  ┌─────────────▼─────────────────────┐   │
 │  │   Backend Pod (Spring Boot)       │   │
 │  │   ├─ Port 8080                    │   │
 │  │   ├─ /api/hello                   │   │
