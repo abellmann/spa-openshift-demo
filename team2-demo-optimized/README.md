@@ -41,6 +41,16 @@ A production-ready demo application with Spring Boot backend, Angular frontend, 
 - **kubectl** configured for your cluster
 - **Docker** for building images
 
+### Setup Development Environment
+
+**Recommended: Use Devbox** (see [DEVBOX_QUICK_START.md](./DEVBOX_QUICK_START.md)):
+```bash
+curl -fsSL https://get.jetpack.io/devbox | bash
+devbox shell
+```
+
+**Manual setup**: Java 17 • Maven 3.9+ • Node.js 18+ • npm • Docker • kubectl • git
+
 ### Local Development (Rancher Desktop)
 
 ```bash
@@ -79,6 +89,38 @@ kubectl exec -it -n team2-demo deployment/backend-team2 -- /bin/bash
 kubectl delete -k k8s/overlays/dev
 ```
 
+## Local Development Workflows
+
+### Backend Development (Spring Boot)
+
+```bash
+cd backend && mvn spring-boot:run
+# http://localhost:8080 | Health: /actuator/health
+```
+
+### Frontend Development (Angular)
+
+```bash
+cd frontend && npm install && ng serve
+# http://localhost:4200 | Proxies /api/* to backend
+```
+
+### Full Stack via Kubernetes
+
+```bash
+./dev.sh
+kubectl port-forward -n team2-demo svc/gateway-team2 3000:8080
+# http://localhost:3000
+```
+
+### Monitor Running Pods
+
+```bash
+kubectl get pods -n team2-demo -w
+kubectl logs -n team2-demo -f deployment/backend-team2
+kubectl exec -it -n team2-demo deployment/backend-team2 -- /bin/bash
+```
+
 ## Project Structure
 
 ```
@@ -113,6 +155,7 @@ team2-demo-optimized/
 ├── docker/                       # Docker build files
 │   ├── Dockerfile.backend
 │   └── Dockerfile.gateway
+├── devbox.json                   # Development environment (Devbox)
 ├── dev.sh                        # Start Kubernetes development
 ├── build.sh                      # Build production images
 └── README.md

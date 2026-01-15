@@ -12,13 +12,40 @@ This is a production-grade SPA with three key components:
 
 Data flow: Browser → Nginx:8080 → (static files OR proxied to Java:8080)
 
+## Development Environment Setup
+
+### Using Devbox (Recommended)
+
+The project includes `devbox.json` for consistent development environments. All required tools (Java 17, Maven, Node.js, Docker, kubectl) are automatically installed:
+
+```bash
+# Install Devbox (one-time)
+curl -fsSL https://get.jetpack.io/devbox | bash
+
+# Enter development environment
+devbox shell
+
+# All tools are now available with correct versions
+java -version    # Java 17
+mvn --version    # Maven
+node --version   # Node.js 18
+docker --version # Docker
+kubectl --version # kubectl
+```
+
+See [DEVBOX_SETUP.md](../DEVBOX_SETUP.md) for detailed instructions and troubleshooting.
+
+### Prerequisites (Without Devbox)
+- Java 17
+- Maven 3.9+
+- Node.js 18+ and npm
+- Docker
+- kubectl
+- Rancher Desktop with Kubernetes enabled (for deployment)
+
 ## Development Setup: Kubernetes (Rancher Desktop)
 
 The project now uses **Kubernetes in development** to match production environments. Docker Compose is no longer used.
-
-### Prerequisites
-- Rancher Desktop installed with Kubernetes enabled
-- kubectl configured for Rancher context
 
 ### Local Development Workflow
 
