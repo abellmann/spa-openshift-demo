@@ -24,12 +24,15 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
         seccompProfile:
           type: RuntimeDefault
       containers:
         - name: backend
-          image: ${REGISTRY}/team2-backend:${VERSION}
-          imagePullPolicy: Always
+          image: team2-backend:latest
+          imagePullPolicy: IfNotPresent
           ports:
             - name: http
               containerPort: 8080
@@ -38,7 +41,7 @@ spec:
             - name: JAVA_OPTS
               value: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
             - name: SPRING_PROFILES_ACTIVE
-              value: "openshift"
+              value: "kubernetes"
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness

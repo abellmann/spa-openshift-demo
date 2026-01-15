@@ -3,4 +3,4 @@ kind: Namespace
 metadata:
   name: team2-demo
   labels:
-    name: team2-demo
+    app.kubernetes.io/name: team2-demo

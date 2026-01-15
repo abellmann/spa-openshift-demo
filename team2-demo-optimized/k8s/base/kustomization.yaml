@@ -7,15 +7,6 @@ resources:
   - namespace.yaml
   - backend-deployment.yaml
   - gateway-deployment.yaml
-  - route.yaml
-  - network-policy.yaml
-
-images:
-  - name: ${REGISTRY}/team2-backend
-    newTag: ${VERSION}
-  - name: ${REGISTRY}/team2-gateway
-    newTag: ${VERSION}
 
 commonLabels:
   app.kubernetes.io/name: team2-demo
-  app.kubernetes.io/part-of: team2-demo

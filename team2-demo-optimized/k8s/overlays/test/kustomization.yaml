@@ -1,0 +1,54 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - route.yaml
+  - network-policy.yaml
+
+namespace: team2-demo
+
+# Test/Prod: 2 replicas for HA
+replicas:
+  - name: backend-team2
+    count: 2
+  - name: gateway-team2
+    count: 2
+
+# Use registry images
+images:
+  - name: team2-backend
+    newName: ${REGISTRY}/team2-backend
+    newTag: ${VERSION}
+  - name: team2-gateway
+    newName: ${REGISTRY}/team2-gateway
+    newTag: ${VERSION}
+
+patches:
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: backend-team2
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Always
+      - op: replace
+        path: /spec/template/spec/containers/0/env/1/value
+        value: "openshift"
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: gateway-team2
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Always
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: team2-demo
+      environment: test
+

@@ -1,0 +1,43 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+namespace: team2-demo
+
+# Dev: single replica for faster iteration
+replicas:
+  - name: backend-team2
+    count: 1
+  - name: gateway-team2
+    count: 1
+
+# Use local images built with docker
+images:
+  - name: team2-backend
+    newName: team2-backend
+    newTag: latest
+  - name: team2-gateway
+    newName: team2-gateway
+    newTag: latest
+
+patches:
+  - target:
+      group: v1
+      version: v1
+      kind: Service
+      name: gateway-team2
+    patch: |-
+      - op: replace
+        path: /spec/type
+        value: NodePort
+      - op: replace
+        path: /spec/ports/0/nodePort
+        value: 30080
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: team2-demo
+      environment: dev
+

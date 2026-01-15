@@ -1,209 +1,315 @@
 # Team 2 Demo Application - Optimized
 
-A production-ready demo application with Spring Boot backend, Angular frontend, and Nginx gateway.
+A production-ready demo application with Spring Boot backend, Angular frontend, and Nginx gateway, deployed with Kubernetes.
 
 ## Architecture
 
 ```
-┌─────────────┐
-│   Gateway   │ (Nginx + Angular SPA)
-│   :8080     │
-└──────┬──────┘
-       │
-       ├─── /      → Angular Frontend (static files)
-       │
-       └─── /api/  → Spring Boot Backend
-                     └─ /hello
-                     └─ /health
+┌──────────────────────────────────────────┐
+│         Kubernetes Cluster               │
+│  ┌────────────────────────────────────┐  │
+│  │   Gateway Pod (Nginx + SPA)        │  │
+│  │   ├─ Port 8080                     │  │
+│  │   ├─ Routes: / → Frontend          │  │
+│  │   └─ Routes: /api/* → Backend      │  │
+│  └─────────────┬──────────────────────┘  │
+│               │                          │
+│  ┌────────────▼──────────────────────┐  │
+│  │   Backend Pod (Spring Boot)       │  │
+│  │   ├─ Port 8080                     │  │
+│  │   ├─ /api/hello                    │  │
+│  │   └─ /actuator/health/*            │  │
+│  └────────────────────────────────────┘  │
+└──────────────────────────────────────────┘
 ```
 
-## Key Optimizations
+## Key Features
 
-- **Consolidated Gateway**: Single nginx container serves frontend AND proxies backend
-- **Multi-stage Builds**: Optimized Docker images with dependency caching
-- **Security**: Non-root users, security contexts, network policies
-- **Health Checks**: Proper liveness/readiness probes
-- **Resource Management**: Sensible CPU/memory limits
-- **Development Workflow**: docker-compose for local development
-- **Production Ready**: Rolling updates, multiple replicas, TLS routes
+- **Unified Gateway**: Single Nginx pod serves frontend SPA and proxies backend API
+- **Multi-stage Builds**: Optimized Docker images with Maven/npm layer caching
+- **Security**: Non-root containers, SecurityContext enforcement, network policies
+- **Health Checks**: Readiness and liveness probes for Kubernetes orchestration
+- **Resource Management**: CPU and memory requests/limits for proper scheduling
+- **Kubernetes Native**: Development uses Rancher Desktop, production uses OpenShift
+- **Kustomize Management**: Base + overlays pattern for environment-specific config
 
 ## Quick Start
 
-### Local Development
+### Prerequisites
+
+- **Rancher Desktop** with Kubernetes enabled (for development)
+- **kubectl** configured for your cluster
+- **Docker** for building images
+
+### Local Development (Rancher Desktop)
 
 ```bash
-# Start all services with docker-compose
+# Start development environment (builds images and deploys to Rancher K8s)
 ./dev.sh
 
-# Or manually:
-# Terminal 1 - Backend
-cd backend
-mvn spring-boot:run
+# Port-forward to access the application
+kubectl port-forward -n team2-demo svc/gateway-team2 3000:8080
 
-# Terminal 2 - Frontend (with proxy to backend)
-cd frontend
-npm install
-npm start
+# Visit http://localhost:3000
 ```
 
-Access:
-- Frontend: http://localhost:4200
-- Backend API: http://localhost:8080/api/hello
+**What `./dev.sh` does:**
+1. Verifies Kubernetes is running
+2. Builds `team2-backend:latest` and `team2-gateway:latest` Docker images
+3. Deploys to `team2-demo` namespace using kustomize dev overlay
+4. Waits for pods to become ready
 
-### Build Images
+### Monitor the Application
 
 ```bash
-export REGISTRY="your-registry.io/team2"
-export VERSION="0.0.1"
+# Watch pods
+kubectl get pods -n team2-demo -w
 
-./build.sh
+# View logs
+kubectl logs -n team2-demo -f deployment/gateway-team2
+kubectl logs -n team2-demo -f deployment/backend-team2
+
+# Shell into a pod
+kubectl exec -it -n team2-demo deployment/backend-team2 -- /bin/bash
 ```
 
-### Deploy to OpenShift
+### Cleanup
 
 ```bash
-# Push images first
-docker push ${REGISTRY}/team2-backend:${VERSION}
-docker push ${REGISTRY}/team2-gateway:${VERSION}
-
-# Deploy
-./deploy.sh
-
-# Check deployment
-kubectl get pods -n team2-demo
-kubectl get route -n team2-demo
+kubectl delete -k k8s/overlays/dev
 ```
 
 ## Project Structure
 
 ```
 team2-demo-optimized/
-├── backend/              # Spring Boot application
+├── k8s/                          # Kubernetes configuration (Kustomize)
+│   ├── base/                     # Shared manifests (dev + test)
+│   │   ├── namespace.yaml
+│   │   ├── backend-deployment.yaml
+│   │   ├── gateway-deployment.yaml
+│   │   └── kustomization.yaml
+│   └── overlays/
+│       ├── dev/                  # Rancher Desktop (1 replica, local images)
+│       │   ├── kustomization.yaml
+│       │   └── README.md
+│       └── test/                 # OpenShift (2 replicas, registry images)
+│           ├── kustomization.yaml
+│           ├── backend-patch.yaml
+│           ├── gateway-patch.yaml
+│           ├── route.yaml
+│           ├── network-policy.yaml
+│           └── README.md
+├── backend/                      # Spring Boot application
 │   ├── src/
 │   └── pom.xml
-├── frontend/             # Angular application
+├── frontend/                     # Angular application
 │   ├── src/
 │   ├── package.json
-│   └── proxy.conf.json   # Dev proxy configuration
-├── gateway/              # Nginx gateway configuration
+│   └── proxy.conf.json
+├── gateway/                      # Nginx gateway
 │   ├── nginx.conf
 │   └── 50x.html
-├── docker/               # Docker build files
+├── docker/                       # Docker build files
 │   ├── Dockerfile.backend
 │   └── Dockerfile.gateway
-├── openshift/            # Kubernetes/OpenShift manifests
-│   ├── backend-deployment.yaml
-│   ├── gateway-deployment.yaml
-│   ├── route.yaml
-│   ├── network-policy.yaml
-│   └── kustomization.yaml
-├── docker-compose.yml    # Local development
-├── build.sh              # Build images
-├── deploy.sh             # Deploy to OpenShift
-└── dev.sh                # Start local development
+├── dev.sh                        # Start Kubernetes development
+├── build.sh                      # Build production images
+└── README.md
+```
+
+## Deployment to OpenShift (Test/Production)
+
+### 1. Build and Push Images
+
+```bash
+export REGISTRY="your-registry.io/team2"
+export VERSION="0.0.1"
+
+# Build and tag images
+./build.sh
+
+# Push to registry
+docker push ${REGISTRY}/team2-backend:${VERSION}
+docker push ${REGISTRY}/team2-gateway:${VERSION}
+```
+
+### 2. Deploy to OpenShift
+
+```bash
+export REGISTRY="your-registry.io/team2"
+export VERSION="0.0.1"
+
+# Deploy using test overlay
+kubectl apply -k k8s/overlays/test
+
+# Watch deployment
+kubectl get pods -n team2-demo -w
+
+# Get the route URL
+kubectl get route -n team2-demo
+```
+
+### 3. Update Route Hostname
+
+Edit `k8s/overlays/test/route.yaml` to set your cluster domain, or patch dynamically:
+
+```bash
+kubectl patch route team2-demo -n team2-demo \
+  -p '{"spec":{"host":"team2-demo.apps.your-cluster.com"}}'
+```
+
+## Kubernetes Configuration
+
+### Dev vs Test Environments
+
+| Aspect | Dev (Rancher) | Test (OpenShift) |
+|--------|---------------|-----------------|
+| **Replicas** | 1 | 2 |
+| **Image Pull Policy** | IfNotPresent (local) | Always (registry) |
+| **Images** | `team2-backend:latest` | `${REGISTRY}/team2-backend:${VERSION}` |
+| **Service Type** | NodePort:30080 | ClusterIP + Route |
+| **Spring Profile** | `kubernetes` | `openshift` |
+| **Network Policy** | None | Yes (ingress/egress) |
+
+### Kustomize Overlays
+
+The project uses **Kustomize** for managing environment-specific configurations:
+
+- **Base** (`k8s/base/`): Common manifests shared between dev and test
+- **Dev Overlay** (`k8s/overlays/dev/`): Rancher Desktop customizations
+- **Test Overlay** (`k8s/overlays/test/`): OpenShift customizations
+
+This approach avoids duplication while allowing environment-specific overrides.
+
+## Individual Component Development
+
+### Backend Only
+
+```bash
+cd backend
+mvn spring-boot:run  # Runs on http://localhost:8080
+```
+
+### Frontend Only
+
+```bash
+cd frontend
+npm install
+npm start  # Runs on http://localhost:4200 with proxy to localhost:8080
+```
+
+The frontend `proxy.conf.json` automatically proxies `/api` requests to the backend during development.
+
+## Testing
+
+### Test Backend API
+
+```bash
+# Local (if running separately)
+curl http://localhost:8080/api/hello
+
+# Via gateway
+curl http://localhost:3000/api/hello
+```
+
+Expected response:
+```json
+{"message":"Hello from Spring Boot Backend"}
+```
+
+### Test Health Endpoints
+
+```bash
+# Backend readiness (K8s probe)
+curl http://localhost:8080/actuator/health/readiness
+
+# Backend liveness (K8s probe)
+curl http://localhost:8080/actuator/health/liveness
+
+# Gateway health
+curl http://localhost:3000/health
 ```
 
 ## Configuration
 
 ### Environment Variables
 
-**Build & Deploy:**
-- `REGISTRY`: Container registry URL (default: `your-registry.io/team2`)
-- `VERSION`: Image version tag (default: `0.0.1`)
+**Build & Deployment:**
+- `REGISTRY`: Container registry URL (e.g., `quay.io/myteam`)
+- `VERSION`: Image tag (e.g., `1.0.0`)
 
 **Backend (application.yml):**
 - `server.port`: HTTP port (default: 8080)
-- `SPRING_PROFILES_ACTIVE`: Active profile (dev/docker/openshift)
+- `SPRING_PROFILES_ACTIVE`: Profile (kubernetes/openshift)
 
-### OpenShift Route
+### Customize Kubernetes Resources
 
-Edit `openshift/route.yaml` to set your cluster domain:
-```yaml
-spec:
-  host: team2-demo.apps.your-cluster.com
-```
-
-## Development
-
-### Frontend Proxy
-
-During development, the frontend uses a proxy configuration (`proxy.conf.json`) to forward `/api` requests to the backend running on port 8080. This avoids CORS issues.
-
-### Hot Reload
-
-```bash
-cd frontend
-npm start  # Frontend with hot reload on :4200
-
-cd backend
-mvn spring-boot:run  # Backend with devtools on :8080
-```
-
-## Testing
-
-### Test Backend
-```bash
-curl http://localhost:8080/api/hello
-# Expected: {"message":"Hello from Spring Boot Backend"}
-```
-
-### Test Frontend
-Visit http://localhost:4200 and click "Call Backend"
-
-### Test Gateway (Docker)
-```bash
-docker-compose up
-curl http://localhost:3000/api/hello
-```
+Edit manifests to adjust:
+- **Replicas**: `k8s/overlays/dev/kustomization.yaml` or `k8s/overlays/test/kustomization.yaml`
+- **Resource Limits**: `k8s/base/backend-deployment.yaml` or `k8s/base/gateway-deployment.yaml`
+- **Health Check Probes**: `k8s/base/*-deployment.yaml`
+- **Network Policies**: `k8s/overlays/test/network-policy.yaml`
 
 ## Production Considerations
 
-1. **Update Registry**: Replace `your-registry.io/team2` with actual registry
-2. **Update Route Host**: Set proper domain in `openshift/route.yaml`
-3. **CORS Configuration**: Update `@CrossOrigin` in backend for production domains
-4. **Resource Limits**: Adjust based on actual load testing
-5. **Replicas**: Scale based on traffic requirements
-6. **Monitoring**: Add Prometheus/Grafana for metrics
+1. **Registry**: Replace `your-registry.io/team2` with actual registry URL
+2. **Route Host**: Update domain in `k8s/overlays/test/route.yaml`
+3. **CORS**: Configure `@CrossOrigin` in backend for production domains
+4. **Resource Limits**: Adjust based on load testing results
+5. **Replicas**: Scale based on traffic in `kustomization.yaml`
+6. **Monitoring**: Integrate Prometheus/Grafana for metrics
 7. **Logging**: Configure centralized logging (ELK/Splunk)
+8. **TLS**: Ensure Route has TLS termination enabled
 
 ## Troubleshooting
 
-### Build Issues
-```bash
-# Clean Docker cache
-docker system prune -a
-
-# Rebuild without cache
-docker-compose build --no-cache
+### Kubernetes Not Available
 ```
+Error: Kubernetes cluster not available
+```
+**Solution**: Start Rancher Desktop and verify Kubernetes is enabled
 
-### Deployment Issues
+### Pods Failing to Start
 ```bash
-# Check pod logs
-kubectl logs -n team2-demo deployment/backend-team2
-kubectl logs -n team2-demo deployment/gateway-team2
-
-# Check pod status
+# Describe pod to see error
 kubectl describe pod -n team2-demo <pod-name>
 
-# Test connectivity
-kubectl exec -n team2-demo deployment/gateway-team2 -- wget -O- http://backend-team2:8080/api/hello
+# Check logs
+kubectl logs -n team2-demo <pod-name>
 ```
 
-### CORS Issues
-If frontend can't reach backend, verify:
-1. Backend CORS configuration allows the frontend origin
-2. Gateway proxy_pass configuration is correct
-3. Network policies allow traffic between pods
+### Image Pull Errors
+Ensure images are built locally before deploying to dev:
+```bash
+docker build -f docker/Dockerfile.backend -t team2-backend:latest .
+docker build -f docker/Dockerfile.gateway -t team2-gateway:latest .
+```
+
+### Connectivity Issues
+Test pod-to-pod communication:
+```bash
+# From gateway to backend
+kubectl exec -n team2-demo deployment/gateway-team2 -- \
+  wget -O- http://backend-team2:8080/api/hello
+```
 
 ## Security
 
-- All containers run as non-root users
-- Security contexts enforce non-privileged execution
-- Network policies restrict pod-to-pod communication
-- TLS termination at OpenShift route
-- Security headers in nginx configuration
+- **Non-root Containers**: All pods run as unprivileged users (UID 65534 for backend, 101 for gateway)
+- **SecurityContext**: Enforces `runAsNonRoot: true`, drops all capabilities
+- **Network Policies**: Restrict ingress/egress in production (test overlay)
+- **TLS**: OpenShift Route provides edge termination
+- **Headers**: Nginx adds security headers (X-Frame-Options, X-Content-Type-Options, etc.)
+
+## Additional Resources
+
+- **Quick Reference**: See `K8S_QUICK_REFERENCE.md` for common commands
+- **AI Agent Instructions**: See `.github/copilot-instructions.md` for development patterns
+- **Dev Overlay Details**: See `k8s/overlays/dev/README.md`
+- **Test Overlay Details**: See `k8s/overlays/test/README.md`
 
 ## License
 
 MIT
+

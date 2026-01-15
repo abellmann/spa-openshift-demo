@@ -22,13 +22,14 @@ COPY gateway/nginx.conf /etc/nginx/nginx.conf
 COPY gateway/50x.html .
 
 # Create non-root user and adjust permissions
+# nginx user has UID 101 in Alpine
 RUN chown -R nginx:nginx /usr/share/nginx/html && \
     chown -R nginx:nginx /var/cache/nginx && \
     chown -R nginx:nginx /var/log/nginx && \
     touch /var/run/nginx.pid && \
     chown -R nginx:nginx /var/run/nginx.pid
 
-USER nginx
+USER 101:101
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
