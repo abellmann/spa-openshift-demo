@@ -10,18 +10,17 @@
 {
   # Environment variables
   env = {
-    JAVA_HOME = "${pkgs.jdk17}";
-    MAVEN_HOME = "${pkgs.maven}";
+    JAVA_HOME = "${pkgs.openjdk17}";
   };
 
   # System packages
   packages = with pkgs; [
     # JVM & Build Tools
-    jdk17
-    maven
+    openjdk17
+    maven_3_9
     
     # Node.js & Frontend
-    nodejs_18
+    nodejs_20
     
     # Container & Orchestration
     docker
@@ -34,10 +33,6 @@
     yq
     gnumake
     vim
-    
-    # Optional: for better terminal experience
-    zsh
-    fzf
   ];
 
   # Shell initialization
@@ -47,11 +42,16 @@
       echo "📦 Installed tools:"
       java -version 2>&1 | head -1
       mvn --version 2>&1 | head -1
-      node --version
-      npm --version
+      echo "Node.js: $(node --version)"
+      echo "npm: $(npm --version)"
       docker --version
-      kubectl version --client 2>/dev/null || echo "kubectl not configured"
+      echo "kubectl: $(kubectl version --client 2>&1 | head -1)"
       git --version
+      curl --version 2>&1 | head -1
+      jq --version
+      yq --version
+      make --version 2>&1 | head -1
+      vim --version 2>&1 | head -1
       echo ""
       echo "📚 Quick Start:"
       echo "  ./dev.sh              - Deploy to local Kubernetes (Rancher Desktop)"
