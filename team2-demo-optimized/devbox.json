@@ -1,10 +1,11 @@
 {
+  "$schema": "https://devbox.sh/config.schema.json",
   "name": "team2-demo",
   "description": "Development environment for Team 2 Demo - Spring Boot + Angular SPA with Kubernetes",
   "packages": [
-    "java17",
-    "maven",
-    "nodejs_18",
+    "openjdk17",
+    "maven@3.9",
+    "nodejs_20",
     "docker",
     "kubectl",
     "git",

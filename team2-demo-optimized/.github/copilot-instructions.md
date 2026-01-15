@@ -224,4 +224,31 @@ kubectl apply -k k8s/overlays/test
 5. **Kustomize strategy**: Base + overlays pattern; overlays override replicas, images, profiles per environment
 6. **Image availability**: Dev overlay requires locally built images; test overlay pulls from registry
 
+## Devbox Package Reference (AI Agent Reference)
+
+### Verified Packages in devbox.json
+
+All packages verified against Nixpkgs unstable (25.11). Use `package:version` syntax for version-specific packages.
+
+| Package | Name in devbox.json | Current Version | Notes |
+|---------|-------------------|-----------------|-------|
+| Java | `openjdk17` | 17.0.17+10 | OpenJDK 17 LTS; other options: `openjdk11`, `openjdk21` |
+| Maven | `maven@3.9` | 3.9.12 | Version pinned to 3.9.x for stability |
+| Node.js | `nodejs_20` | 20.19.6 | LTS version (18 is EOL); alternatives: `nodejs_22` (22.21.1), `nodejs` (latest) |
+| Docker | `docker` | Latest | Container runtime |
+| kubectl | `kubectl` | Latest | Kubernetes CLI |
+| Git | `git` | Latest | Version control |
+| curl | `curl` | Latest | HTTP client |
+| jq | `jq` | Latest | JSON processor |
+| yq | `yq` | Latest | YAML processor |
+| gnumake | `gnumake` | Latest | Build automation |
+| vim | `vim` | Latest | Text editor |
+
+### Package Syntax Notes
+
+- **Without version**: `"docker"` → Latest available version
+- **With version**: `"maven@3.9"` → Specific version (3.9.x); major.minor pins to latest patch
+- **Node.js versions**: Use `nodejs_18`, `nodejs_20`, `nodejs_22`, `nodejs_25`, or `nodejs` (latest)
+- All versions verified in Nixpkgs unstable channel
+
 
