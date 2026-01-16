@@ -193,7 +193,7 @@ async function main() {
   if (failures === 0) {
     console.log(ok('✓ All critical tests passed!'));
     console.log('\n🌐 Access the application:');
-    console.log(`   Frontend: http://${routes.frontend}/app1`);
+    console.log(`   Frontend: http://${routes.frontend}/app1/`);
     console.log(`   API:      http://${routes.frontend}/api/hello`);
     process.exit(0);
   } else {

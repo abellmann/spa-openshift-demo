@@ -21,12 +21,9 @@ COPY --from=frontend-build /build/dist/team2-frontend/ .
 COPY gateway/nginx.conf /etc/nginx/nginx.conf
 COPY gateway/50x.html .
 
-# Create non-root user and adjust permissions
-# nginx user has UID 101 in Alpine
-RUN chown -R nginx:nginx /usr/share/nginx/html && \
-    chown -R nginx:nginx /var/log/nginx && \
-    mkdir -p /tmp/nginx_* && \
-    chown -R nginx:nginx /tmp/nginx_*
+# Ensure writable temp/log directory in /tmp for non-root nginx
+RUN mkdir -p /tmp/nginx && \
+  chown -R nginx:nginx /usr/share/nginx/html /tmp/nginx
 
 USER 101:101
 
