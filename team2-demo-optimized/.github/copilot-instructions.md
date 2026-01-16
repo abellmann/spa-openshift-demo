@@ -4,13 +4,13 @@
 
 This is a production-grade SPA with three key components:
 
-**Unified Gateway Pattern**: A single Nginx container (port 8080) serves the Angular SPA AND proxies API calls to the backend. The gateway is the only exposed service in Kubernetes.
+**OpenShift Routes + Gateway Pattern**: OpenShift Routes expose the gateway (Nginx) which serves the Angular SPA at `/app1/` and proxies API calls to the backend at `/api/*`.
 
-- **Gateway** (`gateway/nginx.conf`): Routes `/` to Angular static files, `/api/*` to backend via Kubernetes DNS (`backend-team2:8080`)
-- **Backend** (Spring Boot 3.2, Java 17): RESTful API with health endpoints at `/actuator/health`
-- **Frontend** (Angular): SPA served by Nginx with asset caching (1-year expires for js/css/images)
+- **Gateway** (`gateway/nginx.conf`): Serves SPA at `/app1/`, proxies `/api/*` to backend via Kubernetes DNS (`backend-team2:8080`), no root redirect (multi-app ready)
+- **Backend** (Spring Boot 3.2, Java 17): RESTful API with health endpoints at `/actuator/health`, no CORS (same-origin via routes)
+- **Frontend** (Angular): SPA built with `--base-href /app1/`, served by Nginx with asset caching
 
-Data flow: Browser → Nginx:8080 → (static files OR proxied to Java:8080)
+Data flow: Browser → Route → Nginx:8080 → (static files at /app1/ OR proxied to Java:8080 at /api/)
 
 ## Development Environment Setup
 
@@ -38,14 +38,14 @@ See [DEVBOX_SETUP.md](../DEVBOX_SETUP.md) for detailed instructions and troubles
 ### Prerequisites (Without Devbox)
 - Java 17
 - Maven 3.9+
-- Node.js 18+ and npm
-- Docker
+- Node.js 20+ and npm
+- Docker or Podman
 - kubectl
-- Rancher Desktop with Kubernetes enabled (for deployment)
+- Podman Desktop with OpenShift Local (CRC) extension enabled
 
-## Development Setup: Kubernetes (Rancher Desktop)
+## Development Setup: OpenShift Local (CRC)
 
-The project now uses **Kubernetes in development** to match production environments. Docker Compose is no longer used.
+The project uses **OpenShift Local (CRC)** in development to match production environments. Routes handle external access.
 
 ### Local Development Workflow
 
@@ -63,8 +63,9 @@ This script:
 
 **Access the application:**
 ```bash
-kubectl port-forward -n team2-demo svc/gateway-team2 3000:8080
-# Visit http://localhost:3000
+# Get route URLs
+kubectl get routes -n team2-demo
+# Visit http://team2-frontend-team2-demo.apps-crc.testing/app1
 ```
 
 **Monitor deployment:**
@@ -91,30 +92,34 @@ k8s/
 │   ├── namespace.yaml
 │   ├── backend-deployment.yaml
 │   ├── gateway-deployment.yaml
+│   ├── frontend-route.yaml
+│   ├── api-route.yaml
+│   ├── backend-route.yaml
 │   └── kustomization.yaml
 ├── overlays/
-│   ├── dev/             # Rancher Desktop development
-│   │   ├── kustomization.yaml   # 1 replica, IfNotPresent pull, NodePort
-│   │   ├── gateway-service-patch.yaml
+│   ├── dev/             # OpenShift Local development
+│   │   ├── kustomization.yaml   # 1 replica, Never pull, reduced resources
 │   │   └── README.md
 │   └── test/            # OpenShift test/production
 │       ├── kustomization.yaml   # 2 replicas, Always pull, registry images
 │       ├── backend-patch.yaml
 │       ├── gateway-patch.yaml
-│       ├── route.yaml
 │       ├── network-policy.yaml
 │       └── README.md
+tests/
+└── routes.spec.ts        # TypeScript smoke tests (npm run test:routes)
 ```
 
 ### Key Differences: Dev vs Test
 
-| Aspect | Dev (Rancher) | Test (OpenShift) |
-|--------|---------------|-----------------|
+| Aspect | Dev (OpenShift Local) | Test (OpenShift) |
+|--------|----------------------|------------------|
 | **Replicas** | 1 | 2 |
-| **Image Pull** | IfNotPresent | Always |
+| **Image Pull** | Never (local) | Always (registry) |
 | **Images** | `team2-backend:latest` | `${REGISTRY}/team2-backend:${VERSION}` |
-| **Service Type** | NodePort (30080) | ClusterIP + Route |
+| **Routes** | Yes (auto-generated hosts) | Yes (with TLS) |
 | **Profiles** | `kubernetes` | `openshift` |
+| **Resources** | Reduced (128Mi/256Mi) | Full (384Mi/768Mi) |
 | **Network Policy** | None | Yes (namespace ingress) |
 
 ### Deploy to OpenShift (Test/Prod)
@@ -166,16 +171,32 @@ Backend respects `SPRING_PROFILES_ACTIVE`:
 ## Critical Conventions
 
 1. **Backend health endpoints**: Always use `/actuator/health/readiness` (K8s probes) and `/actuator/health/liveness` (both Docker and K8s)
-2. **CORS in backend**: `@CrossOrigin(origins = "*")` on controllers—note comment to restrict in production
+2. **CORS in backend**: Not required now; traffic is same-origin via gateway/routes
 3. **Environment profiles**: Backend respects `SPRING_PROFILES_ACTIVE` (kubernetes in dev, openshift in test)
 4. **Kubernetes DNS**: Internal service communication uses `<service-name>:<port>`: `backend-team2:8080` (defined in K8s Services)
 5. **Non-root execution**: All containers run as non-root; Nginx runs as `nginx`, Java as `spring`
 6. **Image pull policy**: Dev uses `IfNotPresent` (local images), Test uses `Always` (registry images)
 
+## Testing
+
+**Route smoke tests** (TypeScript):
+```bash
+npm install
+npm run test:routes
+```
+
+Tests verify:
+- Route accessibility and redirects
+- Static asset loading
+- API endpoint availability (3 routes)
+- Security headers
+- Pod readiness
+- No internal port exposure in redirects
+
 ## Development Commands
 
 ```bash
-# Start development (builds images and deploys to Rancher K8s)
+# Start development (builds images and deploys to OpenShift Local)
 ./dev.sh
 
 # View manifests that will be applied
@@ -185,14 +206,18 @@ kubectl apply -k k8s/overlays/dev --dry-run=client -o yaml
 kubectl exec -it -n team2-demo deployment/backend-team2 -- /bin/bash
 kubectl exec -it -n team2-demo deployment/gateway-team2 -- /bin/sh
 
-# Build images only (without deploying)
-docker build -f docker/Dockerfile.backend -t team2-backend:latest .
-docker build -f docker/Dockerfile.gateway -t team2-gateway:latest .
+# Build images and load into CRC
+docker build --load -f docker/Dockerfile.backend -t team2-backend:latest .
+docker build --load -f docker/Dockerfile.gateway -t team2-gateway:latest .
+./load-images-crc.sh
 
 # Build production images
 export REGISTRY="your-registry.io/team2"
 export VERSION="0.0.1"
 ./build.sh
+
+# Run smoke tests
+npm run test:routes
 
 # Deploy to OpenShift (after pushing images)
 kubectl apply -k k8s/overlays/test
@@ -217,12 +242,14 @@ kubectl apply -k k8s/overlays/test
 
 ## Known Constraints & Decisions
 
-1. **Kubernetes development**: dev.sh requires Rancher Desktop K8s enabled
-2. **Unified gateway**: No separate ingress controller—all traffic flows through one Nginx pod
-3. **CORS permissive**: `origins = "*"` intentional for demo; tighten in production
-4. **K8s service name**: Backend K8s Service MUST be named `backend-team2` (hard-coded in `nginx.conf`)
-5. **Kustomize strategy**: Base + overlays pattern; overlays override replicas, images, profiles per environment
-6. **Image availability**: Dev overlay requires locally built images; test overlay pulls from registry
+1. **OpenShift Local development**: dev.sh requires CRC running with OpenShift Local
+2. **Multi-app ready**: No root redirect—apps accessed via explicit paths (`/app1/`, `/app2/`)
+3. **CORS removed**: Not required—traffic is same-origin via gateway routes
+4. **No hardcoded UIDs**: Base manifests use `runAsNonRoot: true` only; OpenShift auto-assigns safe UIDs
+5. **Routes in base**: All 3 routes (frontend, api, backend) defined in base manifests
+6. **Port exposure**: `port_in_redirect off` prevents internal :8080 appearing in redirects
+7. **Image loading**: Dev uses `./load-images-crc.sh` to pipe Docker images to CRC Podman
+8. **Kustomize strategy**: Base + overlays pattern; dev overlay only adds dev-specific patches (1 replica, Never pull, reduced resources)
 
 ## Devbox Package Reference (AI Agent Reference)
 

@@ -7,6 +7,10 @@ resources:
   - namespace.yaml
   - backend-deployment.yaml
   - gateway-deployment.yaml
+  - frontend-route.yaml
+  - backend-route.yaml
+  - api-route.yaml
 
-commonLabels:
-  app.kubernetes.io/name: team2-demo
+labels:
+  - pairs:
+      app.kubernetes.io/name: team2-demo

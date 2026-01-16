@@ -1,0 +1,11 @@
+{
+  "name": "team2-demo-ops-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:routes": "npx tsx tests/routes.spec.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.0"
+  }
+}

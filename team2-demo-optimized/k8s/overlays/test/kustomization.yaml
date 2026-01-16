@@ -3,7 +3,6 @@ kind: Kustomization
 
 resources:
   - ../../base
-  - route.yaml
   - network-policy.yaml
 
 namespace: team2-demo
@@ -46,6 +45,35 @@ patches:
       - op: replace
         path: /spec/template/spec/containers/0/imagePullPolicy
         value: Always
+  # Add hostname and TLS to routes for production
+  - target:
+      group: route.openshift.io
+      version: v1
+      kind: Route
+      name: team2-frontend
+    patch: |-
+      - op: add
+        path: /spec/host
+        value: team2-demo.apps.your-cluster.com
+      - op: add
+        path: /spec/tls
+        value:
+          termination: edge
+          insecureEdgeTerminationPolicy: Redirect
+  - target:
+      group: route.openshift.io
+      version: v1
+      kind: Route
+      name: team2-backend
+    patch: |-
+      - op: add
+        path: /spec/host
+        value: team2-demo.apps.your-cluster.com
+      - op: add
+        path: /spec/tls
+        value:
+          termination: edge
+          insecureEdgeTerminationPolicy: Redirect
 
 labels:
   - pairs:

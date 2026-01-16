@@ -31,13 +31,37 @@ patches:
     patch: |-
       - op: replace
         path: /spec/type
-        value: NodePort
+        value: ClusterIP
+  # Dev environment: local images, reduced resources for single-node cluster
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: backend-team2
+    patch: |-
       - op: replace
-        path: /spec/ports/0/nodePort
-        value: 30080
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "128Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "256Mi"
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: gateway-team2
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "64Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "128Mi"
 
-labels:
-  - pairs:
-      app.kubernetes.io/name: team2-demo
-      environment: dev
 

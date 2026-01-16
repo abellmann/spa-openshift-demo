@@ -6,9 +6,9 @@ WORKDIR /build
 COPY frontend/package*.json ./
 RUN npm install --legacy-peer-deps
 
-# Build frontend
+# Build frontend with base href /app1/
 COPY frontend/ .
-RUN npm run build
+RUN npm run build -- --base-href /app1/
 
 # Gateway runtime with frontend static files
 FROM nginx:1.25-alpine
@@ -24,10 +24,9 @@ COPY gateway/50x.html .
 # Create non-root user and adjust permissions
 # nginx user has UID 101 in Alpine
 RUN chown -R nginx:nginx /usr/share/nginx/html && \
-    chown -R nginx:nginx /var/cache/nginx && \
     chown -R nginx:nginx /var/log/nginx && \
-    touch /var/run/nginx.pid && \
-    chown -R nginx:nginx /var/run/nginx.pid
+    mkdir -p /tmp/nginx_* && \
+    chown -R nginx:nginx /tmp/nginx_*
 
 USER 101:101
 

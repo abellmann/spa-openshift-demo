@@ -1,0 +1,16 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: team2-frontend
+  namespace: team2-demo
+  labels:
+    app: gateway-team2
+    component: frontend
+spec:
+  to:
+    kind: Service
+    name: gateway-team2
+    weight: 100
+  port:
+    targetPort: http
+  wildcardPolicy: None

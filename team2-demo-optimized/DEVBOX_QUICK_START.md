@@ -6,6 +6,10 @@
 
 ## Getting Started (5 minutes)
 
+### Prerequisites
+
+- **Podman Desktop** with OpenShift Local extension enabled
+
 ### Setup
 ```bash
 # Install (one-time)
@@ -17,11 +21,11 @@ devbox shell
 
 ### Choose Your Workflow
 
-**Option A: Full Stack via Kubernetes**
+**Option A: Full Stack via OpenShift Local**
 ```bash
 ./dev.sh
-kubectl port-forward -n team2-demo svc/gateway-team2 3000:8080
-# Visit http://localhost:3000
+kubectl get routes -n team2-demo
+# Visit the frontend route URL (e.g., http://team2-frontend-team2-demo.apps.local/app1)
 ```
 
 **Option B: Backend Only**
@@ -40,7 +44,7 @@ ng serve
 ```
 
 ## Tools Included
-**Java 17** • **Maven** • **Node.js 18** • **npm** • **Docker** • **kubectl** • **git** • **curl** • **jq** • **yq** • **make** • **vim**
+**Java 17** • **Maven 3.9** • **Node.js 20** • **npm** • **Docker** • **kubectl** • **git** • **curl** • **jq** • **yq** • **make** • **vim**
 
 ## Key Commands
 

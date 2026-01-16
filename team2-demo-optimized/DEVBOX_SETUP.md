@@ -49,13 +49,53 @@ exit
 
 ## What Tools Are Included?
 
-Java 17 • Maven • Node.js 18 • npm • Docker • kubectl • git • curl • jq • yq • make • vim
+Java 17 • Maven 3.9 • Node.js 20 • npm • Docker • kubectl • git • curl • jq • yq • make • vim
 
 ## Development Workflows
 
-See [README.md](./README.md#local-development-workflows) for development workflows (backend, frontend, Kubernetes, monitoring).
+### Full Stack Development (OpenShift Local)
 
-All work should happen inside `devbox shell` to ensure consistent tool versions.
+```bash
+# Install Podman Desktop with OpenShift Local extension first
+# Then start the environment:
+devbox shell
+./dev.sh
+
+# Get route URLs
+kubectl get routes -n team2-demo
+```
+
+### Backend Development
+
+```bash
+devbox shell
+cd backend
+mvn spring-boot:run
+# Runs on http://localhost:8080
+```
+
+### Frontend Development
+
+```bash
+devbox shell
+cd frontend
+npm install
+ng serve
+# Runs on http://localhost:4200 (proxies /api to backend)
+```
+
+All development work should happen inside `devbox shell` to ensure consistent tool versions.
+
+## System Requirements
+
+### For OpenShift Local Development
+
+- **Podman Desktop** - Container platform
+- **OpenShift Local extension** - Local OpenShift cluster
+- **At least 10GB RAM** - For running OpenShift Local
+- **macOS, Linux, or Windows** - Supported by Podman Desktop
+
+See [Podman Desktop documentation](https://podman-desktop.io/) for installation instructions.
 
 ## Advanced Configuration
 

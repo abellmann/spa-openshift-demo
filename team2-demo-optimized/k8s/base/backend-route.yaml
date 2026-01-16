@@ -1,19 +1,17 @@
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
-  name: team2-demo
+  name: team2-backend
   namespace: team2-demo
   labels:
-    app: gateway-team2
+    app: backend-team2
+    component: api
 spec:
-  host: team2-demo.apps.your-cluster.com
+  path: /api
   to:
     kind: Service
-    name: gateway-team2
+    name: backend-team2
     weight: 100
   port:
     targetPort: http
-  tls:
-    termination: edge
-    insecureEdgeTerminationPolicy: Redirect
   wildcardPolicy: None

@@ -6,40 +6,43 @@ A production-ready demo application with Spring Boot backend, Angular frontend, 
 
 ```
 ┌──────────────────────────────────────────┐
-│         Kubernetes Cluster               │
+│      OpenShift Cluster (Local Dev)       │
 │  ┌────────────────────────────────────┐  │
-│  │   Gateway Pod (Nginx + SPA)        │  │
-│  │   ├─ Port 8080                     │  │
-│  │   ├─ Routes: / → Frontend          │  │
-│  │   └─ Routes: /api/* → Backend      │  │
+│  │   Routes (External Access)         │  │
+│  │   ├─ /app1 → Gateway Service       │  │
+│  │   └─ /app1/api → Backend Service   │  │
 │  └─────────────┬──────────────────────┘  │
 │                │                         │
-│  ┌─────────────▼─────────────────────┐   │
-│  │   Backend Pod (Spring Boot)       │   │
-│  │   ├─ Port 8080                    │   │
-│  │   ├─ /api/hello                   │   │
-│  │   └─ /actuator/health/*           │   │
-│  └───────────────────────────────────┘   │
+│  ┌─────────────▼──────────┐ ┌─────────┐ │
+│  │ Gateway Pod (Nginx)    │ │ Backend │ │
+│  │ Port 8080              │ │ Port    │ │
+│  │ Serves: /              │ │ 8080    │ │
+│  └────────────────────────┘ └────┬────┘ │
+│                                   │      │
+│                      (/api/hello,  │     │
+│                       /actuator/*) │     │
+│                                   │      │
 └──────────────────────────────────────────┘
 ```
 
 ## Key Features
 
-- **Unified Gateway**: Single Nginx pod serves frontend SPA and proxies backend API
+- **Route-based Proxy**: OpenShift Routes handle external traffic routing to services
+- **Simplified Nginx**: Nginx serves only static frontend content (no reverse proxy)
 - **Multi-stage Builds**: Optimized Docker images with Maven/npm layer caching
 - **Security**: Non-root containers, SecurityContext enforcement, network policies
 - **Health Checks**: Readiness and liveness probes for Kubernetes orchestration
 - **Resource Management**: CPU and memory requests/limits for proper scheduling
-- **Kubernetes Native**: Development uses Rancher Desktop, production uses OpenShift
+- **Kubernetes Native**: Development uses OpenShift Local, production uses OpenShift
 - **Kustomize Management**: Base + overlays pattern for environment-specific config
 
 ## Quick Start
 
 ### Prerequisites
 
-- **Rancher Desktop** with Kubernetes enabled (for development)
-- **kubectl** configured for your cluster
-- **Docker** for building images
+- **Podman Desktop** with OpenShift Local extension enabled (for development)
+- **kubectl** or **oc** configured for your OpenShift cluster
+- **Docker** or **podman** for building images
 
 ### Setup Development Environment
 
@@ -49,31 +52,35 @@ curl -fsSL https://get.jetpack.io/devbox | bash
 devbox shell
 ```
 
-**Manual setup**: Java 17 • Maven 3.9+ • Node.js 18+ • npm • Docker • kubectl • git
+**Manual setup**: Java 17 • Maven 3.9+ • Node.js 20+ • npm • Docker/Podman • kubectl • git
 
-### Local Development (Rancher Desktop)
+### Local Development (OpenShift Local)
 
 ```bash
-# Start development environment (builds images and deploys to Rancher K8s)
+# Start development environment (builds images and deploys to OpenShift Local)
 ./dev.sh
 
-# Port-forward to access the application
-kubectl port-forward -n team2-demo svc/gateway-team2 3000:8080
+# Get route URLs
+kubectl get routes -n team2-demo
 
-# Visit http://localhost:3000
+# Visit the frontend route URL (e.g., http://team2-frontend-team2-demo.apps.local/app1)
 ```
 
 **What `./dev.sh` does:**
-1. Verifies Kubernetes is running
+1. Verifies OpenShift Local Kubernetes cluster is running
 2. Builds `team2-backend:latest` and `team2-gateway:latest` Docker images
 3. Deploys to `team2-demo` namespace using kustomize dev overlay
-4. Waits for pods to become ready
+4. Creates routes for frontend (/app1) and backend API (/app1/api)
+5. Waits for pods to become ready
 
 ### Monitor the Application
 
 ```bash
 # Watch pods
 kubectl get pods -n team2-demo -w
+
+# View routes
+kubectl get routes -n team2-demo
 
 # View logs
 kubectl logs -n team2-demo -f deployment/gateway-team2
@@ -88,6 +95,15 @@ kubectl exec -it -n team2-demo deployment/backend-team2 -- /bin/bash
 ```bash
 kubectl delete -k k8s/overlays/dev
 ```
+
+### Route smoke tests (TypeScript)
+
+```bash
+npm install
+npm run test:routes
+```
+
+Requires kubectl access to the dev namespace.
 
 ## Local Development Workflows
 
@@ -203,24 +219,43 @@ kubectl patch route team2-demo -n team2-demo \
 
 ### Dev vs Test Environments
 
-| Aspect | Dev (Rancher) | Test (OpenShift) |
-|--------|---------------|-----------------|
+| Aspect | Dev (OpenShift Local) | Test (OpenShift) |
+|--------|----------------------|-----------------|
 | **Replicas** | 1 | 2 |
 | **Image Pull Policy** | IfNotPresent (local) | Always (registry) |
 | **Images** | `team2-backend:latest` | `${REGISTRY}/team2-backend:${VERSION}` |
-| **Service Type** | NodePort:30080 | ClusterIP + Route |
+| **Gateway Type** | ClusterIP + Route | ClusterIP + Route |
+| **Routes** | Auto-generated hostnames | Fixed cluster domain |
 | **Spring Profile** | `kubernetes` | `openshift` |
 | **Network Policy** | None | Yes (ingress/egress) |
+| **Route Paths** | `/app1` (frontend), `/app1/api` (backend) | Fixed routes with cluster domain |
 
 ### Kustomize Overlays
 
 The project uses **Kustomize** for managing environment-specific configurations:
 
-- **Base** (`k8s/base/`): Common manifests shared between dev and test
-- **Dev Overlay** (`k8s/overlays/dev/`): Rancher Desktop customizations
-- **Test Overlay** (`k8s/overlays/test/`): OpenShift customizations
+- **Base** (`k8s/base/`): Common manifests (Deployments, Services, namespace) shared between dev and test
+- **Dev Overlay** (`k8s/overlays/dev/`): OpenShift Local customizations (single replica, local images, routes with auto-generated hostnames)
+- **Test Overlay** (`k8s/overlays/test/`): OpenShift production customizations (multiple replicas, registry images, routes with fixed domain)
 
 This approach avoids duplication while allowing environment-specific overrides.
+
+### Route-based Proxy Architecture
+
+**Previous:** Nginx reverse proxy handled routing
+- Nginx at `/api/*` → Backend service
+- Nginx at `/` → Frontend static files
+
+**Current:** OpenShift Routes handle routing
+- Route 1: `/app1` → Gateway service (Nginx serves static frontend)
+- Route 2: `/app1/api` → Backend service (Spring Boot API)
+- Nginx: Serves only static frontend content (no proxy logic)
+
+**Benefits:**
+- Simpler Nginx configuration
+- Routing logic handled by platform
+- Frontend and backend scaled independently
+- Easier to add additional services/routes in future
 
 ## Individual Component Development
 
@@ -295,7 +330,7 @@ Edit manifests to adjust:
 
 1. **Registry**: Replace `your-registry.io/team2` with actual registry URL
 2. **Route Host**: Update domain in `k8s/overlays/test/route.yaml`
-3. **CORS**: Configure `@CrossOrigin` in backend for production domains
+3. **CORS**: Not required—traffic stays same-origin via gateway/routes
 4. **Resource Limits**: Adjust based on load testing results
 5. **Replicas**: Scale based on traffic in `kustomization.yaml`
 6. **Monitoring**: Integrate Prometheus/Grafana for metrics
